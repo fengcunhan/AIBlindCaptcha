@@ -295,9 +295,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📞 Support
 
-- 🐛 [Report Issues](https://github.com/your-username/AIBlindCaptcha/issues)
-- 💬 [Discussions](https://github.com/your-username/AIBlindCaptcha/discussions)
-- 📧 [Email Support](mailto:support@example.com)
+- 🐛 [Report Issues](https://github.com/fengcunhan/AIBlindCaptcha/issues)
+- 💬 [Discussions](https://github.com/yfengcunhan/AIBlindCaptcha/discussions)
+- 📧 [Email Support](mailto:fengcunhan@gmail.com)
 
 ---
 

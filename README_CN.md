@@ -290,9 +290,9 @@ python -m uvicorn server:app --reload
 
 ## 📞 支持
 
-- 🐛 [报告问题](https://github.com/your-username/AIBlindCaptcha/issues)
-- 💬 [讨论区](https://github.com/your-username/AIBlindCaptcha/discussions)
-- 📧 [邮件支持](mailto:support@example.com)
+- 🐛 [报告问题](https://github.com/fengcunhan/AIBlindCaptcha/issues)
+- 💬 [讨论区](https://github.com/fengcunhan/AIBlindCaptcha/discussions)
+- 📧 [邮件支持](mailto:fengcunhan@gmail.com)
 
 ---
 
