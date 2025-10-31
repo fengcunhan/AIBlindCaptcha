@@ -2,6 +2,12 @@
 
 A sophisticated CAPTCHA system that leverages **Time Blindness** - a phenomenon where AI models struggle to perceive temporal information that humans can easily detect. This implementation creates video-based CAPTCHAs where content is only visible during playback, making them resistant to static image analysis while remaining solvable by humans.
 
+## 🖼️ Demo Screenshot
+
+![AI Blind Captcha Demo](demo_snapshot.png)
+
+*Interactive demo showcasing text, shape, and depth image CAPTCHA modes with real-time validation*
+
 ## 🌟 Features
 
 ### 🔐 **Advanced CAPTCHA Modes**
