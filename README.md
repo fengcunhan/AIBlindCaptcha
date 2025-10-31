@@ -4,6 +4,10 @@ A sophisticated CAPTCHA system that leverages **Time Blindness** - a phenomenon 
 
 ## 🖼️ Demo Media
 
+### SNAPSHOT
+![DEMO SNAPSHOT](demo_snapshot.png)
+
+*交互式演示展示文本、形状和深度图验证码模式的实时验证功能*
 
 ### Demo Video
 
