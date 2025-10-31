@@ -36,29 +36,36 @@
 </head>
 <body>
 <div class="box">
-  <h2>AI Blind Captcha Demo</h2>
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+    <h2 id="pageTitle">AI Blind Captcha Demo</h2>
+    <div class="language-toggle">
+      <button id="langToggle" onclick="toggleLanguage()" style="background: #6c757d; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 14px;">
+        English
+      </button>
+    </div>
+  </div>
 
-  <div class="info">
-    <strong>说明：</strong>此演示展示了基于论文Time Blindness介绍的原理，开发了一套AI 不可识别的验证码系统，包括了几种不同模式：文本、形状和深度图。 论文信息： <a href="https://arxiv.org/pdf/2505.24867">Time Blindness: Why Video-Language Models Can’t See What Humans Can?</a>
+  <div id="description" class="info">
+    <strong id="descriptionLabel">说明：</strong><span id="descriptionText">此演示展示了基于论文Time Blindness介绍的原理，开发了一套AI 不可识别的验证码系统，包括了几种不同模式：文本、形状和深度图。</span> 论文信息： <a href="https://arxiv.org/pdf/2505.24867">Time Blindness: Why Video-Language Models Can't See What Humans Can?</a>
   </div>
 
   <div class="controls">
     <div class="control-group">
-      <label for="mode">验证码模式:</label>
+      <label id="modeLabel" for="mode">验证码模式:</label>
       <select id="mode" onchange="updateModeControls()">
-        <option value="text">文本模式</option>
-        <option value="shape">形状模式</option>
-        <option value="depth">深度图模式</option>
-        <option value="random">随机模式</option>
+        <option id="textMode" value="text">文本模式</option>
+        <option id="shapeMode" value="shape">形状模式</option>
+        <option id="depthMode" value="depth">深度图模式</option>
+        <option id="randomMode" value="random">随机模式</option>
       </select>
     </div>
 
     <div class="control-group">
-      <label for="difficulty">难度等级:</label>
+      <label id="difficultyLabel" for="difficulty">难度等级:</label>
       <select id="difficulty">
-        <option value="easy">简单</option>
-        <option value="medium" selected>中等</option>
-        <option value="hard">困难</option>
+        <option id="easyDifficulty" value="easy">简单</option>
+        <option id="mediumDifficulty" value="medium" selected>中等</option>
+        <option id="hardDifficulty" value="hard">困难</option>
       </select>
     </div>
 
@@ -69,17 +76,17 @@
 
   <!-- 深度图控制面板 -->
   <div id="depthControls" class="depth-controls" style="display: none;">
-    <h4>深度图设置</h4>
+    <h4 id="depthSettingsTitle">深度图设置</h4>
     <div class="file-input">
-      <label for="depthImage">选择深度图:</label>
+      <label id="depthImageLabel" for="depthImage">选择深度图:</label>
       <input type="file" id="depthImage" accept="image/*" onchange="loadDepthImage(event)">
     </div>
     <div class="control-group">
-      <label for="thresholdLow">阈值下限 (tl):</label>
+      <label id="thresholdLowLabel" for="thresholdLow">阈值下限 (tl):</label>
       <input type="number" id="thresholdLow" value="0.2" min="0" max="1" step="0.1">
     </div>
     <div class="control-group">
-      <label for="thresholdHigh">阈值上限 (tu):</label>
+      <label id="thresholdHighLabel" for="thresholdHigh">阈值上限 (tu):</label>
       <input type="number" id="thresholdHigh" value="0.8" min="0" max="1" step="0.1">
     </div>
   </div>
@@ -100,9 +107,139 @@
 <script>
 let currentId = null;
 let depthImageData = null;
+let currentLang = 'zh'; // 'zh' for Chinese, 'en' for English
+
+// Language translations
+const translations = {
+  zh: {
+    pageTitle: "AI Blind Captcha Demo",
+    descriptionLabel: "说明：",
+    descriptionText: "此演示展示了基于论文Time Blindness介绍的原理，开发了一套AI 不可识别的验证码系统，包括了几种不同模式：文本、形状和深度图。",
+    modeLabel: "验证码模式:",
+    textMode: "文本模式",
+    shapeMode: "形状模式",
+    depthMode: "深度图模式",
+    randomMode: "随机模式",
+    difficultyLabel: "难度等级:",
+    easyDifficulty: "简单",
+    mediumDifficulty: "中等",
+    hardDifficulty: "困难",
+    btnNew: "获取验证码",
+    btnHint: "显示提示",
+    depthSettingsTitle: "深度图设置",
+    depthImageLabel: "选择深度图:",
+    thresholdLowLabel: "阈值下限 (tl):",
+    thresholdHighLabel: "阈值上限 (tu):",
+    answerPlaceholder: "请输入看到的内容",
+    btnVerify: "提交校验",
+    langButton: "English",
+    expiresPrefix: "有效期至: ",
+    clickToPlay: "请点击视频播放按钮开始播放（已设置循环播放）",
+    generateFailed: "生成验证码失败",
+    connectionFailed: "连接服务器失败: ",
+    pleaseGetCaptcha: "请先获取验证码",
+    pleaseEnterAnswer: "请输入答案",
+    getHintFailed: "获取提示失败",
+    hintPrefix: "提示: ",
+    verifySuccess: "验证成功",
+    verifyFailed: "答案不正确",
+    captchaNotExists: "验证码不存在或已过期",
+    captchaExpired: "验证码已过期",
+    tooManyAttempts: "尝试次数过多，已失效"
+  },
+  en: {
+    pageTitle: "AI Blind Captcha Demo",
+    descriptionLabel: "Description: ",
+    descriptionText: "This demo showcases a CAPTCHA system based on the Time Blindness paper, featuring multiple modes: text, shape, and depth images.",
+    modeLabel: "CAPTCHA Mode:",
+    textMode: "Text Mode",
+    shapeMode: "Shape Mode",
+    depthMode: "Depth Mode",
+    randomMode: "Random Mode",
+    difficultyLabel: "Difficulty:",
+    easyDifficulty: "Easy",
+    mediumDifficulty: "Medium",
+    hardDifficulty: "Hard",
+    btnNew: "Get New CAPTCHA",
+    btnHint: "Show Hint",
+    depthSettingsTitle: "Depth Image Settings",
+    depthImageLabel: "Select Depth Image:",
+    thresholdLowLabel: "Threshold Low (tl):",
+    thresholdHighLabel: "Threshold High (tu):",
+    answerPlaceholder: "Enter what you see",
+    btnVerify: "Submit",
+    langButton: "中文",
+    expiresPrefix: "Expires at: ",
+    clickToPlay: "Please click the video play button to start (loop playback enabled)",
+    generateFailed: "Failed to generate CAPTCHA",
+    connectionFailed: "Connection failed: ",
+    pleaseGetCaptcha: "Please get a CAPTCHA first",
+    pleaseEnterAnswer: "Please enter an answer",
+    getHintFailed: "Failed to get hint",
+    hintPrefix: "Hint: ",
+    verifySuccess: "Verification successful",
+    verifyFailed: "Incorrect answer",
+    captchaNotExists: "CAPTCHA does not exist or has expired",
+    captchaExpired: "CAPTCHA has expired",
+    tooManyAttempts: "Too many attempts, CAPTCHA invalidated"
+  }
+};
+
+function updateLanguage() {
+  const t = translations[currentLang];
+
+  // Update page title and html lang attribute
+  document.getElementById('pageTitle').textContent = t.pageTitle;
+  document.documentElement.lang = currentLang === 'zh' ? 'zh-CN' : 'en';
+
+  // Update description
+  document.getElementById('descriptionLabel').textContent = t.descriptionLabel;
+  document.getElementById('descriptionText').textContent = t.descriptionText;
+
+  // Update controls
+  document.getElementById('modeLabel').textContent = t.modeLabel;
+  document.getElementById('textMode').textContent = t.textMode;
+  document.getElementById('shapeMode').textContent = t.shapeMode;
+  document.getElementById('depthMode').textContent = t.depthMode;
+  document.getElementById('randomMode').textContent = t.randomMode;
+
+  document.getElementById('difficultyLabel').textContent = t.difficultyLabel;
+  document.getElementById('easyDifficulty').textContent = t.easyDifficulty;
+  document.getElementById('mediumDifficulty').textContent = t.mediumDifficulty;
+  document.getElementById('hardDifficulty').textContent = t.hardDifficulty;
+
+  document.getElementById('btn-new').textContent = t.btnNew;
+  document.getElementById('btn-hint').textContent = t.btnHint;
+
+  // Update depth controls
+  document.getElementById('depthSettingsTitle').textContent = t.depthSettingsTitle;
+  document.getElementById('depthImageLabel').textContent = t.depthImageLabel;
+  document.getElementById('thresholdLowLabel').textContent = t.thresholdLowLabel;
+  document.getElementById('thresholdHighLabel').textContent = t.thresholdHighLabel;
+
+  // Update input and button
+  const answerInput = document.getElementById('answer');
+  answerInput.placeholder = t.answerPlaceholder;
+  document.getElementById('btn-verify').textContent = t.btnVerify;
+
+  // Update language toggle button
+  document.getElementById('langToggle').textContent = t.langButton;
+}
+
+function toggleLanguage() {
+  currentLang = currentLang === 'zh' ? 'en' : 'zh';
+  updateLanguage();
+  localStorage.setItem('preferredLanguage', currentLang);
+}
 
 // 初始化
 document.addEventListener('DOMContentLoaded', function() {
+  // Load saved language preference
+  const savedLang = localStorage.getItem('preferredLanguage');
+  if (savedLang && ['zh', 'en'].includes(savedLang)) {
+    currentLang = savedLang;
+  }
+  updateLanguage();
   updateModeControls();
 });
 
@@ -173,8 +310,9 @@ async function newCaptcha() {
 
       currentId = data.id;
       document.getElementById('hint').textContent = data.hint;
+      const t = translations[currentLang];
       document.getElementById('expires').textContent =
-        '有效期至: ' + new Date(data.expires_at * 1000).toLocaleString();
+        t.expiresPrefix + new Date(data.expires_at * 1000).toLocaleString();
 
       const b64 = data.video_base64;
       const src = 'data:video/mp4;base64,' + b64;
@@ -217,7 +355,8 @@ async function newCaptcha() {
           }, 1000);
         }).catch((error) => {
           console.log('Autoplay prevented, waiting for user interaction:', error);
-          document.getElementById('msg').textContent = '请点击视频播放按钮开始播放（已设置循环播放）';
+          const t = translations[currentLang];
+          document.getElementById('msg').textContent = t.clickToPlay;
           document.getElementById('msg').className = 'hint';
 
           // Add click listener to start playing on user interaction
@@ -232,26 +371,29 @@ async function newCaptcha() {
       document.getElementById('msg').textContent = '';
       document.getElementById('msg').className = '';
     } else {
-      document.getElementById('msg').textContent = '生成验证码失败';
+      const t = translations[currentLang];
+      document.getElementById('msg').textContent = t.generateFailed;
       document.getElementById('msg').className = 'error';
     }
   } catch (error) {
     console.error('Error in newCaptcha:', error);
-    document.getElementById('msg').textContent = '连接服务器失败: ' + error.message;
+    const t = translations[currentLang];
+    document.getElementById('msg').textContent = t.connectionFailed + error.message;
     document.getElementById('msg').className = 'error';
   }
 }
 
 async function verifyCaptcha() {
+  const t = translations[currentLang];
   if (!currentId) {
-    document.getElementById('msg').textContent = '请先获取验证码';
+    document.getElementById('msg').textContent = t.pleaseGetCaptcha;
     document.getElementById('msg').className = 'error';
     return;
   }
 
   const ans = document.getElementById('answer').value.trim();
   if (!ans) {
-    document.getElementById('msg').textContent = '请输入答案';
+    document.getElementById('msg').textContent = t.pleaseEnterAnswer;
     document.getElementById('msg').className = 'error';
     return;
   }
@@ -272,14 +414,16 @@ async function verifyCaptcha() {
       document.getElementById('msg').className = 'error';
     }
   } catch (error) {
-    document.getElementById('msg').textContent = '连接服务器失败: ' + error.message;
+    const t = translations[currentLang];
+    document.getElementById('msg').textContent = t.connectionFailed + error.message;
     document.getElementById('msg').className = 'error';
   }
 }
 
 async function showHint() {
+  const t = translations[currentLang];
   if (!currentId) {
-    document.getElementById('msg').textContent = '请先获取验证码';
+    document.getElementById('msg').textContent = t.pleaseGetCaptcha;
     document.getElementById('msg').className = 'error';
     return;
   }
@@ -291,13 +435,13 @@ async function showHint() {
 
     if (resp.ok) {
       const data = await resp.json();
-      alert('提示: ' + data.hint);
+      alert(t.hintPrefix + data.hint);
     } else {
-      document.getElementById('msg').textContent = '获取提示失败';
+      document.getElementById('msg').textContent = t.getHintFailed;
       document.getElementById('msg').className = 'error';
     }
   } catch (error) {
-    document.getElementById('msg').textContent = '连接服务器失败: ' + error.message;
+    document.getElementById('msg').textContent = t.connectionFailed + error.message;
     document.getElementById('msg').className = 'error';
   }
 }

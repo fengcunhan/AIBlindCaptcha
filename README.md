@@ -4,13 +4,10 @@ A sophisticated CAPTCHA system that leverages **Time Blindness** - a phenomenon 
 
 ## 🖼️ Demo Media
 
-### Screenshot
-![AI Blind Captcha Demo](demo_snapshot.png)
-
-*Interactive demo showcasing text, shape, and depth image CAPTCHA modes with real-time validation*
 
 ### Demo Video
-https://github.com/user-attachments/assets/5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b
+
+[![AI Blind Captcha Demo](demo_snapshot.gif)](demo_snapshot.gif)
 
 *Live demonstration of time-encoded CAPTCHA generation and validation with video loop playback*
 
