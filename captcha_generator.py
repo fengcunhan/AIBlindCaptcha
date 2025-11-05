@@ -115,7 +115,7 @@ def _make_uniform_color_noise(h: int, w, seed: Optional[int] = None) -> np.ndarr
     Generate uniform color noise pattern with same density for both foreground and background.
     Returns uint8 array [h, w, 3], RGB values
     """
-    return _make_color_noise(h, w, saturation=0.85, density=0.5, seed=seed)
+    return _make_color_noise(h, w, saturation=0.8, density=0.4, seed=seed)
 
 def _apply_gaussian_blur_mask(mask: np.ndarray, sigma: float = 1.0) -> np.ndarray:
     """
@@ -289,8 +289,8 @@ def generate_time_captcha(
         if not answer:
             # Generate 4 digits for color points mode
             answer = "".join(rng.choice(list(string.digits), size=4))
-        # Use blurred mask to make edges less sharp
-        mask = _make_blurred_color_text_mask(w, h, answer, font_size_ratio=0.5, blur_sigma=2.0)
+        # Use moderate blur to make edges less sharp but still readable
+        mask = _make_blurred_color_text_mask(w, h, answer, font_size_ratio=0.45, blur_sigma=1.5)
     else:
         raise ValueError("Unsupported mode")
 
@@ -317,10 +317,10 @@ def generate_time_captcha(
             mask_3d = np.stack([mask] * 3, axis=2)
             frame = (mask_3d * shifted_fg + (1 - mask_3d) * bg_noise).astype(np.uint8)
 
-            # Add random interference to make static analysis harder
-            if t % 3 == 0:
-                # Add occasional random pixel flips to confuse static analysis
-                interference_mask = rng.random((h, w, 3)) < 0.02  # 2% random interference
+            # Minimal interference - just occasional slight pixel variation
+            if t % 5 == 0:  # Less frequent interference
+                # Very subtle random interference
+                interference_mask = rng.random((h, w, 3)) < 0.01  # 1% interference
                 random_colors = rng.randint(0, 256, (h, w, 3), dtype=np.uint8)
                 frame = np.where(interference_mask, random_colors, frame)
         else:
