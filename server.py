@@ -36,7 +36,7 @@ CAPTCHA_STORE: Dict[str, Dict] = {}
 TTL_SECONDS = 180  # 3 minutes
 
 class NewCaptchaRequest(BaseModel):
-    mode: str = "text"          # "text" | "shape" | "depth" | "random"
+    mode: str = "text"          # "text" | "shape" | "depth" | "color_points" | "random"
     difficulty: str = "medium"  # "easy" | "medium" | "hard"
     threshold_low: Optional[float] = 0.2  # tl for depth mode
     threshold_high: Optional[float] = 0.8  # tu for depth mode
@@ -61,7 +61,7 @@ def new_captcha(req: NewCaptchaRequest):
     # Handle random mode selection
     import random
     if req.mode == "random":
-        mode = random.choice(["text", "shape", "depth"])
+        mode = random.choice(["text", "shape", "depth", "color_points"])
     else:
         mode = req.mode
 

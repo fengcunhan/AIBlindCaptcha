@@ -83,15 +83,102 @@ def _make_tiled_noise(h: int, w: int, block: int, density: float, seed: Optional
     noise[:, 0] = noise[:, -1]
     return noise
 
+def _make_color_noise(h: int, w, saturation: float = 0.8, density: float = 0.5, seed: Optional[int] = None) -> np.ndarray:
+    """
+    Generate tileable color noise pattern with specified saturation and density.
+    Returns uint8 array [h, w, 3], RGB values
+    """
+    if seed is not None:
+        rng = np.random.RandomState(seed)
+    else:
+        rng = np.random.RandomState()
+
+    # Create density mask
+    density_mask = (rng.rand(h, w) < density).astype(np.uint8)
+
+    # Generate RGB noise
+    noise = rng.randint(0, 256, (h, w, 3), dtype=np.uint8)
+
+    # Apply density mask
+    for i in range(3):
+        noise[:, :, i] = noise[:, :, i] * density_mask
+
+    # Adjust saturation using HSV color space
+    hsv = cv2.cvtColor(noise, cv2.COLOR_RGB2HSV)
+    hsv[:, :, 1] = hsv[:, :, 1] * saturation  # Scale saturation channel
+    rgb = cv2.cvtColor(hsv, cv2.COLOR_HSV2RGB)
+
+    return rgb
+
+def _make_uniform_color_noise(h: int, w, seed: Optional[int] = None) -> np.ndarray:
+    """
+    Generate uniform color noise pattern with same density for both foreground and background.
+    Returns uint8 array [h, w, 3], RGB values
+    """
+    return _make_color_noise(h, w, saturation=0.85, density=0.5, seed=seed)
+
+def _apply_gaussian_blur_mask(mask: np.ndarray, sigma: float = 1.0) -> np.ndarray:
+    """
+    Apply Gaussian blur to smooth the edges of the mask using OpenCV.
+    """
+    # Convert to uint8 and apply Gaussian blur
+    mask_uint8 = (mask * 255).astype(np.uint8)
+    ksize = int(6 * sigma + 1)  # Calculate kernel size
+    if ksize % 2 == 0:
+        ksize += 1  # Ensure odd kernel size
+    blurred = cv2.GaussianBlur(mask_uint8, (ksize, ksize), sigma)
+    return blurred.astype(np.float32) / 255.0
+
+def _make_blurred_color_text_mask(w: int, h: int, text: str, font_size_ratio: float = 0.5, blur_sigma: float = 2.0) -> np.ndarray:
+    """
+    Render blurred binary mask for text to make edges less sharp.
+    Returns uint8 array [h, w], values in {0, 1}
+    """
+    mask = _render_color_text_mask(w, h, text, font_size_ratio)
+    # Apply Gaussian blur to soften edges
+    blurred_mask = _apply_gaussian_blur_mask(mask, sigma=blur_sigma)
+    return blurred_mask
+
+def _render_color_text_mask(w: int, h: int, text: str, font_size_ratio: float = 0.5) -> np.ndarray:
+    """
+    Render binary mask for text using PIL (similar to _render_text_mask).
+    Returns uint8 array [h, w], values in {0, 1}
+    """
+    font_size = int(h * font_size_ratio)
+    font = _pick_font(font_size)
+
+    img = Image.new('L', (w, h), 0)
+    draw = ImageDraw.Draw(img)
+
+    # Calculate text size and position
+    bbox = draw.textbbox((0, 0), text, font=font)
+    text_width = bbox[2] - bbox[0]
+    text_height = bbox[3] - bbox[1]
+
+    x = (w - text_width) // 2
+    y = (h - text_height) // 2
+
+    draw.text((x, y), text, fill=255, font=font)
+    mask = np.array(img, dtype=np.float32) / 255.0
+    return mask
+
 def _shift_vertical(src: np.ndarray, offset: int) -> np.ndarray:
     """
-    Shift vertically with wrap (tileable). Positive offset moves content downward.
+    Shift vertically with wrap (tileable). Works for both 2D and 3D arrays.
+    Positive offset moves content downward.
     """
     h = src.shape[0]
     off = offset % h
     if off == 0:
         return src
-    return np.roll(src, shift=off, axis=0)
+    if src.ndim == 2:
+        # 2D array (grayscale)
+        return np.vstack([src[-off:, :], src[:-off, :]])
+    elif src.ndim == 3:
+        # 3D array (color), shift each channel
+        return np.vstack([src[-off:, :, :], src[:-off:, :, :]])
+    else:
+        raise ValueError("Unsupported array dimension")
 
 def _render_text_mask(w: int, h: int, text: str, font_size_ratio: float = 0.35) -> np.ndarray:
     """
@@ -198,28 +285,59 @@ def generate_time_captcha(
         mask = _depth_mask_from_image(depth_image, tl, tu)
         if not answer:
             answer = "object"  # generic; server-side can map to concrete label per source
+    elif mode == "color_points":
+        if not answer:
+            # Generate 4 digits for color points mode
+            answer = "".join(rng.choice(list(string.digits), size=4))
+        # Use blurred mask to make edges less sharp
+        mask = _make_blurred_color_text_mask(w, h, answer, font_size_ratio=0.5, blur_sigma=2.0)
     else:
         raise ValueError("Unsupported mode")
 
-    # Single noise pattern; background static, foreground moves (Algorithm 2 style)
-    noise = _make_tiled_noise(h, w, block=noise_block, density=noise_density, seed=None)
+    # Generate noise patterns based on mode
+    if mode == "color_points":
+        # Color points mode: use uniform color noise for both foreground and background
+        # Only motion difference reveals the text
+        base_noise = _make_uniform_color_noise(h, w, seed=None)
+        bg_noise = base_noise
+        fg_noise = base_noise.copy()  # Make a copy for independent motion
+    else:
+        # Other modes use binary noise
+        noise = _make_tiled_noise(h, w, block=noise_block, density=noise_density, seed=None)
+        bg_noise = noise
+        fg_noise = noise
 
     # Compose frames
     frames_rgb: List[np.ndarray] = []
     for t in range(frames_n):
-        # Foreground: shifted noise; Background: static noise
-        shifted = _shift_vertical(noise, offset=speed_px_per_frame * t)
-        # Assemble by mask
-        fg = shifted
-        bg = noise
-        frame = (mask * fg + (1 - mask) * bg).astype(np.uint8)
+        if mode == "color_points":
+            # For color points mode, foreground moves, background static
+            shifted_fg = _shift_vertical(fg_noise, offset=speed_px_per_frame * t)
+            # Combine using blurred mask (convert mask to 3D)
+            mask_3d = np.stack([mask] * 3, axis=2)
+            frame = (mask_3d * shifted_fg + (1 - mask_3d) * bg_noise).astype(np.uint8)
+
+            # Add random interference to make static analysis harder
+            if t % 3 == 0:
+                # Add occasional random pixel flips to confuse static analysis
+                interference_mask = rng.random((h, w, 3)) < 0.02  # 2% random interference
+                random_colors = rng.randint(0, 256, (h, w, 3), dtype=np.uint8)
+                frame = np.where(interference_mask, random_colors, frame)
+        else:
+            # For other modes, use the original binary noise approach
+            shifted = _shift_vertical(noise, offset=speed_px_per_frame * t)
+            fg = shifted
+            bg = noise
+            frame = (mask * fg + (1 - mask) * bg).astype(np.uint8)
+            # Convert to RGB
+            rgb = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
+            frame = rgb
+
         # Optional slight horizontal jitter to make replay harder
         if t % 7 == 0:
             frame = np.roll(frame, shift=rng.randint(-1, 2), axis=1)
 
-        # Convert to RGB and apply mild contrast for visibility
-        rgb = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
-        frames_rgb.append(rgb)
+        frames_rgb.append(frame)
 
     # Encode MP4 to memory (H.264 or MPEG-4)
     # Note: cv2.VideoWriter needs a path; we write to temp in memory and read back.
